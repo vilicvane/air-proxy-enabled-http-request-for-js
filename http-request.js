@@ -1,57 +1,15 @@
-﻿/*
-    Adobe AIR Proxy Enabled HTTP Request for JavaScript
-    By VILIC VANE
-    Blog: www.vilic.info
-    Email: i@vilic.info
-
-    *Requires VEJIS 0.4*
-    https://github.com/vilic/vejis
-
-    *It does only support HTTP, not including HTTPS.*
-
-    Basic usage:
-
-    use_("http-request", function (hr) {
-
-        var req = new hr.Request();
-
-        //you can turn off cookies
-        //req.cookieEnabled = false;
-
-        //or turn off auto redirect
-        //req.autoRedirect = false;
-
-        req.proxy.host = "localhost";
-        req.proxy.port = 1107;
-
-        req.open("get", "http://www.vilic.info/blog/");
-
-        //you can set request headers
-        //req.setRequestHeader("Referer", "http://www.vilic.info/");
-
-        req.send(function (req) {
-            if (req.error) {
-                alert(req.error);
-                return;
-            }
-
-            alert(req.status);
-            alert(req.responseText);
-        });
-
-        //if you use post, you'll also need to send the data
-        //string and ByteArray are supported
-        //req.send(data, callback);
-
-    });
-
-    For full usage, please check the source code. :D
-*/
+/// <reference path="/dev/vejis.intellisense.js" />
+/// <reference path="/dev/AIRAliases.js" />
 
 module_("http-request", function () {
     var hr = this;
 
     this.defaultProxies = [];
+
+    //this.defaultProxies = [{
+    //    host: "127.0.0.1",
+    //    port: 9257
+    //}];
 
     var proxyPos = 0;
 
@@ -79,14 +37,14 @@ module_("http-request", function () {
         var that = this;
         var data = {};
 
-        this.add = _(String, Object, function (name, value) {
+        this.add = _(String, nul_(Object), function (name, value) {
             if (data["#" + name])
                 data["#" + name].push(encodeURIComponent(value));
             else
                 data["#" + name] = [encodeURIComponent(value)];
         });
 
-        this.set = _(String, Object, function (name, value) {
+        this.set = _(String, nul_(Object), function (name, value) {
             that.remove(name);
             that.add(name, value);
         });
@@ -165,10 +123,17 @@ module_("http-request", function () {
         };
 
         this.clear = function (domain) {
-            var domains = getDomains(domain);
-            for_(domains, function (domain) {
-                delete cookiesItems[domain];
-            });
+            if (arguments.length) {
+                var domains = getDomains(domain);
+                for_(domains, function (domain) {
+                    delete cookiesItems[domain];
+                });
+            }
+            else {
+                forin_(cookiesItems, function (item, domain) {
+                    delete cookiesItems[domain];
+                });
+            }
         };
 
         this.get = function (domain, name) {
@@ -339,7 +304,7 @@ module_("http-request", function () {
             opened = true;
         });
 
-        this.send = _(Object, Function, function (data, callback) {
+        this.send = _(nul_(Object), Function, function (data, callback) {
             if (!opened)
                 throw new Error("not opened");
 
@@ -361,7 +326,14 @@ module_("http-request", function () {
         });
 
         this.send._(Function, function (callback) {
-            that.send("", callback);
+            that.send(null, callback);
+        });
+
+        var connTimeout = 60000;
+        var connTimer;
+
+        this.setTimeout = _(Number, function (timeout) {
+            connTimeout = timeout;
         });
 
         this.abort = _(function () {
@@ -370,13 +342,57 @@ module_("http-request", function () {
             complete();
         });
 
+        this.dispose = _(function () {
+            requestHeaders =
+            responseHeaders =
+            responseHeaderLines =
+            responseHeaderComplete =
+            ready =
+            chunked =
+            chunkRemain =
+            error =
+            proxyEnabled =
+            responseBody =
+            responseText =
+            status =
+            contentType =
+            charset =
+            contentLength =
+            location =
+            aborted = null;
+
+            closeSocket();
+
+            delete this.proxy;
+            delete this.cookieEnabled;
+            delete this.autoRedirect;
+            delete this.responseBody;
+            delete this.responseText;
+            delete this.status;
+            delete this.contentType;
+            delete this.contentLength;
+            delete this.location;
+            delete this.url;
+            delete this.error;
+            delete this.aborted;
+            delete this.cookieContainer;
+
+            delete this.setRequestHeader;
+            delete this.removeRequestHeader;
+            delete this.getResponseHeader; 
+            delete this.open;
+            delete this.send;
+            delete this.abort;
+            delete this.setTimeout;
+            delete this.dispose;
+        });
+
         function onioerror(e) {
             error = e.toString();
-            complete();
+            setTimeout(complete, 0);
         }
 
         function ondata() {
-
             if (!responseHeaderComplete) (function () {
                 var line;
                 while (line = readLine())
@@ -388,7 +404,7 @@ module_("http-request", function () {
                     "process response headers",
                     function () {
                         var statusRe = / (\d+)/;
-                        status = Number(statusRe.exec(responseHeaderLines[0])[1]);
+                        status = Number((statusRe.exec(responseHeaderLines[0]) || [])[1]);
 
                         var lines = responseHeaderLines;
 
@@ -455,7 +471,7 @@ module_("http-request", function () {
 
                     if ((status >= 300 && status < 400 || status == 201) && location && that.autoRedirect) {
                         var nurl = location;
-                        init();
+                        init(true);
                         request("GET", nurl);
                         return;
                     }
@@ -468,6 +484,7 @@ module_("http-request", function () {
                 }
             })();
 
+            //value of responseHeaderComplete might be changed in the previous block.
             if (responseHeaderComplete) (function () {
                 if (!responseBody)
                     responseBody = new air.ByteArray();
@@ -518,7 +535,8 @@ module_("http-request", function () {
                 }
 
                 function done() {
-                    socket.close();
+                    closeSocket();
+                    //socket.close();
                     complete();
                 }
             })();
@@ -530,15 +548,23 @@ module_("http-request", function () {
         }
 
         function complete() {
+            clearTimeout(connTimer);
+            //air.trace("timer cleared " + connTimer);
             ready = true;
             opened = false;
-            if (!aborted)
-                completeCallback(that);
+            if (!aborted && completeCallback)
+                completeCallback.call(that);
+            completeCallback = null;
         }
 
-        function init() {
+        function init(isRedirect) {
+            if (!isRedirect)
+                requestHeaders = {};
+            else {
+                delete requestHeaders["content-type"];
+                delete requestHeaders["content-length"];
+            }
 
-            requestHeaders = {};
             responseHeaders = {};
             responseHeaderLines = [];
             responseHeaderComplete = false;
@@ -559,6 +585,8 @@ module_("http-request", function () {
 
             aborted = false;
 
+            clearTimeout(connTimer);
+            //air.trace("timer cleared " + connTimer);
             closeSocket();
             createSocket();
         }
@@ -571,6 +599,7 @@ module_("http-request", function () {
                 socket.removeEventListener(air.ProgressEvent.SOCKET_DATA, ondata);
                 socket.removeEventListener(air.Event.CLOSE, onclose);
                 socket.removeEventListener(air.IOErrorEvent.IO_ERROR, onioerror);
+                socket = null;
             }
         }
 
@@ -648,14 +677,13 @@ module_("http-request", function () {
                 }
             }
 
-
             var header = headerLines.join("\r\n");
 
             /*
             air.trace("\n- REQUEST HEADER -");
             air.trace(header);
             air.trace("-\n");
-            */
+            //*/
 
             header += "\r\n\r\n";
 
@@ -665,6 +693,17 @@ module_("http-request", function () {
                 socket.writeBytes(dataBytes);
 
             socket.flush();
+
+            connTimer = setTimeout(ontimeout, connTimeout);
+            //air.trace("timer set " + connTimer);
+        }
+
+        function ontimeout() {
+            //air.trace("on timeout called");
+            //air.trace(url);
+            status = 408;
+            closeSocket();
+            complete();
         }
     };
 });
