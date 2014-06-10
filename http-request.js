@@ -1,5 +1,52 @@
-/// <reference path="/dev/vejis.intellisense.js" />
-/// <reference path="/dev/AIRAliases.js" />
+/*
+    Adobe AIR Proxy Enabled HTTP Request for JavaScript
+    By VILIC VANE
+    Blog: www.vilic.info
+    Email: i@vilic.info
+
+    *Requires VEJIS 0.4*
+    https://github.com/vilic/vejis
+
+    *It does only support HTTP, not including HTTPS.*
+
+    Basic usage:
+
+    use_("http-request", function (hr) {
+
+        var req = new hr.Request();
+
+        //you can turn off cookies
+        //req.cookieEnabled = false;
+
+        //or turn off auto redirect
+        //req.autoRedirect = false;
+
+        req.proxy.host = "localhost";
+        req.proxy.port = 1107;
+
+        req.open("get", "http://www.vilic.info/blog/");
+
+        //you can set request headers
+        //req.setRequestHeader("Referer", "http://www.vilic.info/");
+
+        req.send(function (req) {
+            if (req.error) {
+                alert(req.error);
+                return;
+            }
+
+            alert(req.status);
+            alert(req.responseText);
+        });
+
+        //if you use post, you'll also need to send the data
+        //string and ByteArray are supported
+        //req.send(data, callback);
+
+    });
+
+    For full usage, please check the source code. :D
+*/
 
 module_("http-request", function () {
     var hr = this;
